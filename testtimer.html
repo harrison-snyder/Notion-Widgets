@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timer Widget</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: transparent;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .timer-container {
+            background: transparent;
+            text-align: center;
+            max-width: 300px;
+            width: 100%;
+        }
+
+        .timer-circle {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 30px;
+        }
+
+        .circle-bg {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 3px solid #e9ecef;
+            position: absolute;
+        }
+
+        .circle-progress {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .circle-progress.visible {
+            opacity: 1;
+        }
+
+        .progress-arc {
+            fill: none;
+            stroke: #212529;
+            stroke-width: 6;
+            stroke-linecap: round;
+            transition: stroke-dasharray 0.1s ease;
+            transform-origin: 100px 100px;
+            transform: rotate(-90deg);
+        }
+
+        .time-display {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            font-weight: 600;
+            color: #212529;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .time-input {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            font-weight: 600;
+            color: #212529;
+            background: transparent;
+            border: none;
+            text-align: center;
+            width: 100px;
+            outline: none;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn {
+            background: #212529;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 12px 30px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            min-width: 80px;
+        }
+
+        .btn:hover {
+            background: #495057;
+        }
+
+        .btn-reset {
+            background: #6c757d;
+            min-width: 80px;
+        }
+
+        .btn-reset:hover {
+            background: #5a6268;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .done-text {
+            font-size: 18px;
+            font-weight: 600;
+            color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="timer-container">
+        <div class="timer-circle">
+            <div class="circle-bg"></div>
+            <svg class="circle-progress" viewBox="0 0 200 200">
+                <circle 
+                    class="progress-arc"
+                    cx="100" 
+                    cy="100" 
+                    r="90"
+                    stroke-dasharray="0 565.48"
+                />
+            </svg>
+            <div class="time-display" id="timeDisplay">15:00</div>
+            <input class="time-input hidden" id="timeInput" type="text" value="15:00">
+        </div>
+        
+        <div class="controls">
+            <button class="btn" id="startBtn">start</button>
+            <button class="btn btn-reset hidden" id="resetBtn">reset</button>
+        </div>
+    </div>
+
+    <script>
+        class Timer {
+            constructor() {
+                this.totalSeconds = 15 * 60; // Default 15 minutes
+                this.remainingSeconds = this.totalSeconds;
+                this.isRunning = false;
+                this.isEditing = false;
+                this.interval = null;
+                this.circumference = 2 * Math.PI * 90; // circle radius is 90
+                
+                this.timeDisplay = document.getElementById('timeDisplay');
+                this.timeInput = document.getElementById('timeInput');
+                this.startBtn = document.getElementById('startBtn');
+                this.resetBtn = document.getElementById('resetBtn');
+                this.progressArc = document.querySelector('.progress-arc');
+                this.progressContainer = document.querySelector('.circle-progress');
+                
+                this.init();
+            }
+            
+            init() {
+                this.updateDisplay();
+                this.updateProgress();
+                this.bindEvents();
+            }
+            
+            bindEvents() {
+                this.startBtn.addEventListener('click', () => this.toggleTimer());
+                this.resetBtn.addEventListener('click', () => this.reset());
+                this.timeDisplay.addEventListener('click', () => this.startEditing());
+                this.timeInput.addEventListener('blur', () => this.stopEditing());
+                this.timeInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        this.stopEditing();
+                    }
+                });
+            }
+            
+            toggleTimer() {
+                // If timer is completed (shows DONE), act as reset
+                if (this.timeDisplay.textContent === 'DONE') {
+                    this.reset();
+                    return;
+                }
+                
+                if (this.isRunning) {
+                    this.pause();
+                } else {
+                    this.start();
+                }
+            }
+            
+            start() {
+                this.isRunning = true;
+                this.startBtn.textContent = 'stop';
+                this.resetBtn.classList.add('hidden');
+                this.progressContainer.classList.add('visible');
+                
+                this.interval = setInterval(() => {
+                    this.remainingSeconds--;
+                    this.updateDisplay();
+                    this.updateProgress();
+                    
+                    if (this.remainingSeconds <= 0) {
+                        this.complete();
+                    }
+                }, 1000);
+            }
+            
+            pause() {
+                this.isRunning = false;
+                this.startBtn.textContent = 'start';
+                this.resetBtn.classList.remove('hidden');
+                clearInterval(this.interval);
+            }
+            
+            complete() {
+                this.isRunning = false;
+                this.startBtn.textContent = 'reset';
+                this.startBtn.classList.add('btn-reset');
+                this.resetBtn.classList.add('hidden');
+                this.timeDisplay.textContent = 'DONE';
+                this.timeDisplay.classList.add('done-text');
+                clearInterval(this.interval);
+                
+                // Remove the custom onclick handler - we'll handle this in toggleTimer
+                this.startBtn.onclick = null;
+            }
+            
+            reset() {
+                this.isRunning = false;
+                this.remainingSeconds = this.totalSeconds;
+                this.startBtn.textContent = 'start';
+                this.startBtn.classList.remove('btn-reset');
+                this.resetBtn.classList.add('hidden');
+                this.timeDisplay.classList.remove('done-text');
+                this.progressContainer.classList.remove('visible');
+                
+                // Remove custom onclick handler if it exists
+                this.startBtn.onclick = null;
+                
+                clearInterval(this.interval);
+                this.updateDisplay();
+                this.updateProgress();
+            }
+            
+            startEditing() {
+                if (this.isRunning) return;
+                
+                // If timer shows DONE, reset it first to allow editing
+                if (this.timeDisplay.textContent === 'DONE') {
+                    this.reset();
+                }
+                
+                this.isEditing = true;
+                this.timeDisplay.classList.add('hidden');
+                this.timeInput.classList.remove('hidden');
+                this.timeInput.value = this.formatTime(this.remainingSeconds);
+                this.timeInput.focus();
+                this.timeInput.select();
+            }
+            
+            stopEditing() {
+                this.isEditing = false;
+                this.timeDisplay.classList.remove('hidden');
+                this.timeInput.classList.add('hidden');
+                
+                // Parse the input and update timer
+                const timeStr = this.timeInput.value;
+                const seconds = this.parseTimeString(timeStr);
+                
+                if (seconds > 0) {
+                    this.totalSeconds = seconds;
+                    this.remainingSeconds = seconds;
+                    this.updateDisplay();
+                    this.updateProgress();
+                    
+                    // Reset the progress arc to hidden state
+                    this.progressContainer.classList.remove('visible');
+                    this.progressArc.style.strokeDasharray = '0 565.48';
+                    
+                    console.log(`Timer updated to: ${this.formatTime(seconds)}, total: ${this.totalSeconds}, remaining: ${this.remainingSeconds}`);
+                }
+            }
+            
+            parseTimeString(timeStr) {
+                timeStr = timeStr.trim();
+                
+                if (timeStr.includes(':')) {
+                    // Format: "mins:secs"
+                    const parts = timeStr.split(':');
+                    if (parts.length === 2) {
+                        const minutes = parseInt(parts[0]) || 0;
+                        const seconds = parseInt(parts[1]) || 0;
+                        
+                        // Validate seconds (should be 0-59)
+                        if (seconds >= 60) {
+                            return 0; // Invalid input
+                        }
+                        
+                        const totalSeconds = minutes * 60 + seconds;
+                        console.log(`Parsed "${timeStr}" as ${minutes}m ${seconds}s = ${totalSeconds} total seconds`);
+                        return totalSeconds;
+                    }
+                } else {
+                    // Format: just "mins"
+                    const minutes = parseInt(timeStr) || 0;
+                    const totalSeconds = minutes * 60;
+                    console.log(`Parsed "${timeStr}" as ${minutes} minutes = ${totalSeconds} total seconds`);
+                    return totalSeconds;
+                }
+                
+                console.log(`Failed to parse "${timeStr}"`);
+                return 0; // Invalid input
+            }
+            
+            formatTime(seconds) {
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+            
+            updateDisplay() {
+                const formattedTime = this.formatTime(this.remainingSeconds);
+                this.timeDisplay.textContent = formattedTime;
+            }
+            
+            updateProgress() {
+                const progress = (this.totalSeconds - this.remainingSeconds) / this.totalSeconds;
+                const dashArray = progress * this.circumference;
+                const dashOffset = this.circumference - dashArray;
+                
+                this.progressArc.style.strokeDasharray = `${dashArray} ${dashOffset}`;
+            }
+        }
+        
+        // Initialize timer when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new Timer();
+        });
+    </script>
+</body>
+</html>
