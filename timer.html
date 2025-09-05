@@ -12,6 +12,12 @@
         }
 
         body {
+            @media (prefers-color-scheme: light) {
+                text-color: black;
+            }
+            @media (prefers-color-scheme: light) {
+                text-color: white;
+            }
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: transparent;
             display: flex;
@@ -59,7 +65,7 @@
 
         .progress-arc {
             fill: none;
-            stroke: #ffffff;
+            stroke: text-color;
             stroke-width: 6;
             stroke-linecap: round;
             transition: stroke-dasharray 0.1s ease;
@@ -86,7 +92,7 @@
             transform: translate(-50%, -50%);
             font-size: 24px;
             font-weight: 600;
-            color: #ffffff;
+            color: text-color;
             background: transparent;
             border: none;
             text-align: center;
